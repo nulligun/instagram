@@ -1,0 +1,40 @@
+{
+  "name": "instagram-token-cli",
+  "version": "1.0.0",
+  "description": "A CLI tool for obtaining and managing Instagram long-term access tokens",
+  "main": "src/index.js",
+  "bin": {
+    "instagram-token": "./bin/cli.js"
+  },
+  "scripts": {
+    "start": "node bin/cli.js",
+    "test": "jest",
+    "dev": "nodemon bin/cli.js"
+  },
+  "keywords": [
+    "instagram",
+    "oauth",
+    "cli",
+    "token",
+    "facebook",
+    "api"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "chalk": "^4.1.2",
+    "commander": "^11.1.0",
+    "inquirer": "^8.2.6",
+    "keytar": "^7.9.0",
+    "ora": "^5.4.1",
+    "open": "^8.4.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
