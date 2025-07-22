@@ -63,9 +63,11 @@ program
 program
   .command('info [alias]')
   .description('Get account details and token information')
-  .action(async (alias) => {
+  .option('--show-token', 'Show the full access token (security risk)')
+  .option('--token-only', 'Output only the access token')
+  .action(async (alias, options) => {
     try {
-      await cli.getAccountInfo(alias);
+      await cli.getAccountInfo(alias, options);
     } catch (error) {
       console.error(chalk.red('Error getting account info:'), error.message);
       process.exit(1);

@@ -344,7 +344,7 @@ class InstagramTokenCLI {
     console.log(`   Expires: ${expiresAt.toLocaleDateString()} at ${expiresAt.toLocaleTimeString()}`);
     console.log(`   Created: ${new Date(account.data.createdAt).toLocaleDateString()}`);
     console.log(`   Last Refreshed: ${new Date(account.data.lastRefreshed).toLocaleDateString()}`);
-    console.log(`   Access Token: ${account.data.access_token.substring(0, 20)}...`);
+    console.log(`   Access Token: ${account.data.access_token}`);
   }
 
   async refreshToken(alias) {
