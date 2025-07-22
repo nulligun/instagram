@@ -13,7 +13,7 @@ class TokenManager {
    */
   async saveAccount(alias, accountData) {
     try {
-      // Store all data including access token in JSON file
+      // Store all data including access token and Instagram Graph API fields
       const accounts = await this.getAccounts();
       accounts[alias] = {
         accountInfo: accountData.accountInfo,
@@ -21,7 +21,12 @@ class TokenManager {
         expires_in: accountData.expires_in,
         createdAt: accountData.createdAt,
         lastRefreshed: accountData.lastRefreshed,
-        access_token: accountData.access_token
+        access_token: accountData.access_token,
+        // Instagram Graph API specific fields
+        facebookUserId: accountData.facebookUserId,
+        facebookPageId: accountData.facebookPageId,
+        facebookPageName: accountData.facebookPageName,
+        instagramBusinessAccountId: accountData.instagramBusinessAccountId
       };
 
       await this.saveAccountsFile(accounts);
