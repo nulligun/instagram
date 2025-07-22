@@ -1,13 +1,22 @@
 # Instagram Token CLI
 
-A powerful command-line tool for obtaining and managing Instagram long-term access tokens. This tool simplifies the Instagram OAuth flow and provides secure token storage with support for multiple accounts.
+A powerful command-line tool for obtaining and managing Instagram long-term access tokens using the Instagram Graph API. This tool simplifies the Facebook OAuth flow and provides secure token storage with support for multiple Instagram Business accounts.
+
+## 🚨 Important Update
+
+**Instagram Basic Display API has been discontinued.** This CLI now uses the **Instagram Graph API**, which requires:
+
+- **Facebook Business App** (not Consumer app)
+- **Instagram Business Account** (not personal account)
+- **Facebook Page** connected to your Instagram account
 
 ## 🚀 Features
 
-- **Terminal-based OAuth Flow**: Minimal browser interaction required
+- **Facebook OAuth Integration**: Seamless authentication through Facebook
+- **Instagram Business Account Support**: Works with Instagram Graph API
 - **Multiple Account Support**: Store and manage tokens for different Instagram accounts
 - **Secure Token Storage**: Encrypted credentials using system keychain
-- **Auto-refresh Capability**: Automatically refresh tokens before expiration
+- **Auto-refresh Capability**: Automatically refresh Facebook tokens before expiration
 - **Comprehensive CLI Commands**: Full suite of token management commands
 - **Export/Import**: Backup and restore your account configurations
 - **Token Validation**: Verify token status and permissions
@@ -16,11 +25,11 @@ A powerful command-line tool for obtaining and managing Instagram long-term acce
 
 Before using this tool, you need to set up:
 
-1. **Instagram Business or Creator Account**
-2. **Facebook Page** (connected to your Instagram account)
-3. **Facebook App** (with Instagram Basic Display API enabled)
+1. **Instagram Business Account** (converted from personal account)
+2. **Facebook Page** (connected to your Instagram Business account)
+3. **Facebook Business App** (with Instagram Graph API enabled)
 
-> 📖 **Don't have these set up?** Check out our [Complete Setup Guide](docs/SETUP.md) for step-by-step instructions.
+> 📖 **New to Instagram Graph API?** Check out our [Instagram Graph API Setup Guide](docs/INSTAGRAM-GRAPH-API-SETUP.md) for detailed instructions.
 
 ## 🛠 Installation
 

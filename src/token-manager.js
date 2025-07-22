@@ -1,24 +1,19 @@
 const fs = require('fs').promises;
 const path = require('path');
-const keytar = require('keytar');
 
 class TokenManager {
   constructor(configDir) {
     this.configDir = configDir;
     this.accountsFile = path.join(configDir, 'accounts.json');
     this.settingsFile = path.join(configDir, 'settings.json');
-    this.serviceName = 'instagram-token-cli';
   }
 
   /**
-   * Save account with encrypted token storage
+   * Save account with token in plain text
    */
   async saveAccount(alias, accountData) {
     try {
-      // Store sensitive token data in keychain
-      await keytar.setPassword(this.serviceName, `${alias}-token`, accountData.access_token);
-      
-      // Store non-sensitive data in JSON file
+      // Store all data including access token in JSON file
       const accounts = await this.getAccounts();
       accounts[alias] = {
         accountInfo: accountData.accountInfo,
@@ -26,8 +21,7 @@ class TokenManager {
         expires_in: accountData.expires_in,
         createdAt: accountData.createdAt,
         lastRefreshed: accountData.lastRefreshed,
-        // Store a hash of the token for validation without exposing it
-        tokenHash: this.hashToken(accountData.access_token)
+        access_token: accountData.access_token
       };
 
       await this.saveAccountsFile(accounts);
@@ -44,7 +38,7 @@ class TokenManager {
   }
 
   /**
-   * Get account data with decrypted token
+   * Get account data with access token
    */
   async getAccount(alias) {
     try {
@@ -55,22 +49,11 @@ class TokenManager {
         return null;
       }
 
-      // Retrieve token from keychain
-      const accessToken = await keytar.getPassword(this.serviceName, `${alias}-token`);
-      
-      if (!accessToken) {
-        throw new Error(`Token not found in secure storage for account: ${alias}`);
+      if (!account.access_token) {
+        throw new Error(`Token not found for account: ${alias}`);
       }
 
-      // Verify token integrity
-      if (this.hashToken(accessToken) !== account.tokenHash) {
-        throw new Error(`Token integrity check failed for account: ${alias}`);
-      }
-
-      return {
-        ...account,
-        access_token: accessToken
-      };
+      return account;
     } catch (error) {
       throw new Error(`Failed to retrieve account: ${error.message}`);
     }
@@ -117,9 +100,6 @@ class TokenManager {
         throw new Error(`Account ${alias} not found`);
       }
 
-      // Remove from keychain
-      await keytar.deletePassword(this.serviceName, `${alias}-token`);
-      
       // Remove from accounts file
       delete accounts[alias];
       await this.saveAccountsFile(accounts);
@@ -307,22 +287,14 @@ class TokenManager {
   }
 
   /**
-   * Create a hash of the token for integrity checking
-   */
-  hashToken(token) {
-    const crypto = require('crypto');
-    return crypto.createHash('sha256').update(token).digest('hex');
-  }
-
-  /**
-   * Get all stored credentials from keychain (for debugging)
+   * Get all stored accounts (for debugging)
    */
   async getStoredCredentials() {
     try {
-      const credentials = await keytar.findCredentials(this.serviceName);
-      return credentials.map(cred => ({
-        account: cred.account,
-        hasPassword: !!cred.password
+      const accounts = await this.getAccounts();
+      return Object.keys(accounts).map(alias => ({
+        account: alias,
+        hasPassword: !!(accounts[alias].access_token)
       }));
     } catch (error) {
       return [];
@@ -330,17 +302,20 @@ class TokenManager {
   }
 
   /**
-   * Clear all stored credentials (for cleanup)
+   * Clear all stored accounts (for cleanup)
    */
   async clearAllCredentials() {
     try {
-      const credentials = await keytar.findCredentials(this.serviceName);
+      const accounts = await this.getAccounts();
+      const accountCount = Object.keys(accounts).length;
       
-      for (const cred of credentials) {
-        await keytar.deletePassword(this.serviceName, cred.account);
-      }
+      // Clear accounts file
+      await this.saveAccountsFile({});
       
-      return credentials.length;
+      // Clear settings file
+      await this.saveSettings({});
+      
+      return accountCount;
     } catch (error) {
       throw new Error(`Failed to clear credentials: ${error.message}`);
     }

@@ -1,26 +1,21 @@
 const fs = require('fs').promises;
 const path = require('path');
-const keytar = require('keytar');
 
 class ConfigManager {
   constructor(configDir) {
     this.configDir = configDir;
     this.configFile = path.join(configDir, 'config.json');
-    this.serviceName = 'instagram-token-cli';
-    this.secretKey = 'app-secret';
   }
 
   /**
-   * Save configuration with encrypted app secret
+   * Save configuration with app secret in plain text
    */
   async saveConfig(config) {
     try {
-      // Store app secret in keychain
-      await keytar.setPassword(this.serviceName, this.secretKey, config.appSecret);
-      
-      // Store non-sensitive config in JSON file
+      // Store all config data including app secret in JSON file
       const configData = {
         appId: config.appId,
+        appSecret: config.appSecret,
         redirectUri: config.redirectUri,
         createdAt: new Date().toISOString(),
         lastUpdated: new Date().toISOString()
@@ -33,7 +28,7 @@ class ConfigManager {
   }
 
   /**
-   * Get configuration with decrypted app secret
+   * Get configuration with app secret
    */
   async getConfig() {
     try {
@@ -44,17 +39,11 @@ class ConfigManager {
       const data = await fs.readFile(this.configFile, 'utf8');
       const config = JSON.parse(data);
       
-      // Retrieve app secret from keychain
-      const appSecret = await keytar.getPassword(this.serviceName, this.secretKey);
-      
-      if (!appSecret) {
-        throw new Error('App secret not found in secure storage. Please run initialization again.');
+      if (!config.appSecret) {
+        throw new Error('App secret not found in configuration. Please run initialization again.');
       }
 
-      return {
-        ...config,
-        appSecret
-      };
+      return config;
     } catch (error) {
       if (error.code === 'ENOENT') {
         throw new Error('Configuration not found. Please run "instagram-token init" first.');
@@ -70,10 +59,11 @@ class ConfigManager {
     try {
       await fs.access(this.configFile);
       
-      // Also check if app secret exists in keychain
-      const appSecret = await keytar.getPassword(this.serviceName, this.secretKey);
+      // Check if app secret exists in config file
+      const data = await fs.readFile(this.configFile, 'utf8');
+      const config = JSON.parse(data);
       
-      return !!appSecret;
+      return !!(config.appSecret);
     } catch (error) {
       return false;
     }
@@ -86,35 +76,24 @@ class ConfigManager {
     try {
       const currentConfig = await this.getConfig();
       
-      // Update app secret in keychain if provided
-      if (updates.appSecret) {
-        await keytar.setPassword(this.serviceName, this.secretKey, updates.appSecret);
-      }
-      
-      // Update config file
+      // Update config file with all data including appSecret
       const updatedConfig = {
         ...currentConfig,
         ...updates,
         lastUpdated: new Date().toISOString()
       };
       
-      // Remove appSecret from file data
-      const { appSecret, ...fileData } = updatedConfig;
-      
-      await fs.writeFile(this.configFile, JSON.stringify(fileData, null, 2));
+      await fs.writeFile(this.configFile, JSON.stringify(updatedConfig, null, 2));
     } catch (error) {
       throw new Error(`Failed to update configuration: ${error.message}`);
     }
   }
 
   /**
-   * Remove configuration and secrets
+   * Remove configuration
    */
   async removeConfig() {
     try {
-      // Remove app secret from keychain
-      await keytar.deletePassword(this.serviceName, this.secretKey);
-      
       // Remove config file
       await fs.unlink(this.configFile);
     } catch (error) {
@@ -193,12 +172,13 @@ class ConfigManager {
   }
 
   /**
-   * Check if app secret exists in keychain
+   * Check if app secret exists in configuration
    */
   async hasAppSecret() {
     try {
-      const appSecret = await keytar.getPassword(this.serviceName, this.secretKey);
-      return !!appSecret;
+      const data = await fs.readFile(this.configFile, 'utf8');
+      const config = JSON.parse(data);
+      return !!(config.appSecret);
     } catch (error) {
       return false;
     }

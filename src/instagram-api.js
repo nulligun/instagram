@@ -2,18 +2,18 @@ const axios = require('axios');
 
 class InstagramAPI {
   constructor() {
-    this.baseUrl = 'https://graph.instagram.com';
-    this.version = 'v18.0';
+    this.facebookGraphUrl = 'https://graph.facebook.com/v18.0';
   }
 
   /**
-   * Get Instagram account information
+   * Get Instagram Business Account information
+   * Uses Instagram Graph API which requires Business Account ID
    */
-  async getAccountInfo(accessToken) {
+  async getAccountInfo(accessToken, businessAccountId) {
     try {
-      const response = await axios.get(`${this.baseUrl}/me`, {
+      const response = await axios.get(`${this.facebookGraphUrl}/${businessAccountId}`, {
         params: {
-          fields: 'id,username,account_type,media_count',
+          fields: 'id,username,name,media_count,followers_count,follows_count,profile_picture_url',
           access_token: accessToken
         }
       });
@@ -21,20 +21,20 @@ class InstagramAPI {
       return response.data;
     } catch (error) {
       if (error.response) {
-        throw new Error(`Instagram API error: ${error.response.data.error?.message || error.response.data.error}`);
+        throw new Error(`Instagram Graph API error: ${error.response.data.error?.message || error.response.data.error}`);
       }
       throw new Error(`Network error: ${error.message}`);
     }
   }
 
   /**
-   * Get detailed account information including insights
+   * Get detailed Instagram Business Account information including insights
    */
-  async getDetailedAccountInfo(accessToken) {
+  async getDetailedAccountInfo(accessToken, businessAccountId) {
     try {
-      const response = await axios.get(`${this.baseUrl}/me`, {
+      const response = await axios.get(`${this.facebookGraphUrl}/${businessAccountId}`, {
         params: {
-          fields: 'id,username,account_type,media_count,followers_count,follows_count,profile_picture_url,website,biography',
+          fields: 'id,username,name,media_count,followers_count,follows_count,profile_picture_url,website,biography',
           access_token: accessToken
         }
       });
@@ -46,21 +46,21 @@ class InstagramAPI {
         // Some fields might not be available for all account types
         if (errorData?.code === 100 && errorData?.message?.includes('Unsupported get request')) {
           // Fallback to basic info
-          return await this.getAccountInfo(accessToken);
+          return await this.getAccountInfo(accessToken, businessAccountId);
         }
-        throw new Error(`Instagram API error: ${errorData?.message || errorData}`);
+        throw new Error(`Instagram Graph API error: ${errorData?.message || errorData}`);
       }
       throw new Error(`Network error: ${error.message}`);
     }
   }
 
   /**
-   * Get user's media (posts)
+   * Get Instagram Business Account media (posts)
    */
-  async getMedia(accessToken, limit = 25, after = null) {
+  async getMedia(accessToken, businessAccountId, limit = 25, after = null) {
     try {
       const params = {
-        fields: 'id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,username',
+        fields: 'id,caption,media_type,media_url,thumbnail_url,permalink,timestamp',
         limit: limit,
         access_token: accessToken
       };
@@ -69,14 +69,14 @@ class InstagramAPI {
         params.after = after;
       }
 
-      const response = await axios.get(`${this.baseUrl}/me/media`, {
+      const response = await axios.get(`${this.facebookGraphUrl}/${businessAccountId}/media`, {
         params
       });
 
       return response.data;
     } catch (error) {
       if (error.response) {
-        throw new Error(`Instagram API error: ${error.response.data.error?.message || error.response.data.error}`);
+        throw new Error(`Instagram Graph API error: ${error.response.data.error?.message || error.response.data.error}`);
       }
       throw new Error(`Network error: ${error.message}`);
     }
@@ -87,9 +87,9 @@ class InstagramAPI {
    */
   async getMediaDetails(mediaId, accessToken) {
     try {
-      const response = await axios.get(`${this.baseUrl}/${mediaId}`, {
+      const response = await axios.get(`${this.facebookGraphUrl}/${mediaId}`, {
         params: {
-          fields: 'id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,username,like_count,comments_count',
+          fields: 'id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count',
           access_token: accessToken
         }
       });
@@ -97,18 +97,18 @@ class InstagramAPI {
       return response.data;
     } catch (error) {
       if (error.response) {
-        throw new Error(`Instagram API error: ${error.response.data.error?.message || error.response.data.error}`);
+        throw new Error(`Instagram Graph API error: ${error.response.data.error?.message || error.response.data.error}`);
       }
       throw new Error(`Network error: ${error.message}`);
     }
   }
 
   /**
-   * Get media insights (for business accounts)
+   * Get media insights (for Instagram Business accounts)
    */
   async getMediaInsights(mediaId, accessToken, metrics = ['impressions', 'reach', 'engagement']) {
     try {
-      const response = await axios.get(`${this.baseUrl}/${mediaId}/insights`, {
+      const response = await axios.get(`${this.facebookGraphUrl}/${mediaId}/insights`, {
         params: {
           metric: metrics.join(','),
           access_token: accessToken
@@ -123,18 +123,18 @@ class InstagramAPI {
         if (errorData?.code === 100 || errorData?.message?.includes('Unsupported get request')) {
           return { data: [], error: 'Insights not available for this account type' };
         }
-        throw new Error(`Instagram API error: ${errorData?.message || errorData}`);
+        throw new Error(`Instagram Graph API error: ${errorData?.message || errorData}`);
       }
       throw new Error(`Network error: ${error.message}`);
     }
   }
 
   /**
-   * Get account insights (for business accounts)
+   * Get account insights (for Instagram Business accounts)
    */
-  async getAccountInsights(accessToken, period = 'day', metrics = ['impressions', 'reach', 'profile_views']) {
+  async getAccountInsights(accessToken, businessAccountId, period = 'day', metrics = ['impressions', 'reach', 'profile_views']) {
     try {
-      const response = await axios.get(`${this.baseUrl}/me/insights`, {
+      const response = await axios.get(`${this.facebookGraphUrl}/${businessAccountId}/insights`, {
         params: {
           metric: metrics.join(','),
           period: period,
@@ -150,7 +150,7 @@ class InstagramAPI {
         if (errorData?.code === 100 || errorData?.message?.includes('Unsupported get request')) {
           return { data: [], error: 'Insights not available for this account type' };
         }
-        throw new Error(`Instagram API error: ${errorData?.message || errorData}`);
+        throw new Error(`Instagram Graph API error: ${errorData?.message || errorData}`);
       }
       throw new Error(`Network error: ${error.message}`);
     }
@@ -159,9 +159,9 @@ class InstagramAPI {
   /**
    * Validate access token by making a test API call
    */
-  async validateToken(accessToken) {
+  async validateToken(accessToken, businessAccountId) {
     try {
-      const response = await this.getAccountInfo(accessToken);
+      const response = await this.getAccountInfo(accessToken, businessAccountId);
       return {
         valid: true,
         data: response
@@ -177,18 +177,16 @@ class InstagramAPI {
   /**
    * Get token information and permissions
    */
-  async getTokenInfo(accessToken) {
+  async getTokenInfo(accessToken, businessAccountId) {
     try {
-      // This endpoint might not be available for Instagram tokens
-      // but we can try to get basic info to validate
-      const accountInfo = await this.getAccountInfo(accessToken);
+      const accountInfo = await this.getAccountInfo(accessToken, businessAccountId);
       
       return {
         valid: true,
         accountId: accountInfo.id,
         username: accountInfo.username,
-        accountType: accountInfo.account_type,
-        scopes: ['user_profile', 'user_media'], // Default scopes for Instagram Basic Display
+        name: accountInfo.name,
+        scopes: ['pages_show_list', 'pages_read_engagement', 'instagram_basic', 'instagram_manage_insights'],
         checkedAt: new Date().toISOString()
       };
     } catch (error) {
@@ -203,12 +201,12 @@ class InstagramAPI {
   /**
    * Test API connectivity and permissions
    */
-  async testConnection(accessToken) {
+  async testConnection(accessToken, businessAccountId) {
     const tests = [];
 
     // Test 1: Basic account info
     try {
-      const accountInfo = await this.getAccountInfo(accessToken);
+      const accountInfo = await this.getAccountInfo(accessToken, businessAccountId);
       tests.push({
         test: 'Account Info',
         status: 'passed',
@@ -224,7 +222,7 @@ class InstagramAPI {
 
     // Test 2: Media access
     try {
-      const media = await this.getMedia(accessToken, 1);
+      const media = await this.getMedia(accessToken, businessAccountId, 1);
       tests.push({
         test: 'Media Access',
         status: 'passed',
@@ -240,7 +238,7 @@ class InstagramAPI {
 
     // Test 3: Detailed account info (might fail for some account types)
     try {
-      const detailedInfo = await this.getDetailedAccountInfo(accessToken);
+      const detailedInfo = await this.getDetailedAccountInfo(accessToken, businessAccountId);
       tests.push({
         test: 'Detailed Account Info',
         status: 'passed',
@@ -272,10 +270,10 @@ class InstagramAPI {
   /**
    * Get rate limit information (if available)
    */
-  async getRateLimitInfo(accessToken) {
+  async getRateLimitInfo(accessToken, businessAccountId) {
     try {
       // Make a simple API call and check headers
-      const response = await axios.get(`${this.baseUrl}/me`, {
+      const response = await axios.get(`${this.facebookGraphUrl}/${businessAccountId}`, {
         params: {
           fields: 'id',
           access_token: accessToken
@@ -286,9 +284,9 @@ class InstagramAPI {
       
       return {
         available: true,
-        limit: headers['x-ratelimit-limit'] || 'Unknown',
-        remaining: headers['x-ratelimit-remaining'] || 'Unknown',
-        reset: headers['x-ratelimit-reset'] || 'Unknown',
+        limit: headers['x-app-usage'] || headers['x-business-use-case-usage'] || 'Unknown',
+        remaining: 'Unknown', // Facebook doesn't provide remaining in headers
+        reset: 'Unknown',
         checkedAt: new Date().toISOString()
       };
     } catch (error) {
@@ -322,7 +320,8 @@ class InstagramAPI {
     return {
       id: account.id,
       username: account.username,
-      type: account.account_type || 'Personal',
+      name: account.name,
+      type: 'Business', // Instagram Graph API only works with Business accounts
       mediaCount: account.media_count || 0,
       followers: account.followers_count || 'N/A',
       following: account.follows_count || 'N/A',

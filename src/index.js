@@ -141,12 +141,13 @@ class InstagramTokenCLI {
     try {
       const config = await this.configManager.getConfig();
       
-      // Start OAuth flow
-      console.log(chalk.cyan('\n🔐 Starting OAuth flow...\n'));
+      // Start Facebook OAuth flow for Instagram Graph API
+      console.log(chalk.cyan('\n🔐 Starting Facebook OAuth flow for Instagram Graph API...\n'));
+      console.log(chalk.yellow('Note: This will authenticate with Facebook to access your Instagram Business Account.'));
       
       const authUrl = this.oauthManager.generateAuthUrl(config);
       
-      console.log(chalk.yellow('1. Open the following URL in your browser:'));
+      console.log(chalk.yellow('\n1. Open the following URL in your browser:'));
       console.log(chalk.blue.underline(authUrl));
       console.log();
       
@@ -185,36 +186,86 @@ class InstagramTokenCLI {
         }
       ]);
       
-      const spinner = ora('Exchanging authorization code for access token...').start();
+      const spinner = ora('Exchanging authorization code for Facebook access token...').start();
       
       // Extract authorization code
       const code = new URL(redirectUrl).searchParams.get('code');
       
-      // Exchange code for short-lived token
+      // Exchange code for Facebook short-lived token
       const shortLivedToken = await this.oauthManager.exchangeCodeForToken(code, config);
-      spinner.text = 'Converting to long-lived token...';
+      spinner.text = 'Converting to long-lived Facebook token...';
       
-      // Exchange for long-lived token
+      // Exchange for long-lived Facebook token
       const longLivedToken = await this.oauthManager.exchangeForLongLivedToken(shortLivedToken, config);
-      spinner.text = 'Fetching account information...';
+      spinner.text = 'Fetching Facebook pages...';
       
-      // Get account info
-      const accountInfo = await this.instagramAPI.getAccountInfo(longLivedToken.access_token);
+      // Get user's Facebook pages
+      const pages = await this.oauthManager.getFacebookPages(longLivedToken.access_token);
       
-      // Save account
+      if (pages.length === 0) {
+        spinner.fail('No Facebook pages found');
+        console.log(chalk.red('\n❌ No Facebook pages found.'));
+        console.log(chalk.yellow('You need a Facebook page connected to your Instagram Business Account.'));
+        console.log(chalk.cyan('Please create a Facebook page and connect it to your Instagram account first.'));
+        return;
+      }
+      
+      spinner.stop();
+      
+      // Let user select a Facebook page
+      const { selectedPageId } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'selectedPageId',
+          message: 'Select the Facebook page connected to your Instagram account:',
+          choices: pages.map(page => ({
+            name: `${page.name} (ID: ${page.id})`,
+            value: page.id
+          }))
+        }
+      ]);
+      
+      const selectedPage = pages.find(p => p.id === selectedPageId);
+      const spinner2 = ora('Getting Instagram Business Account information...').start();
+      
+      // Get Instagram Business Account from the selected page
+      const instagramAccount = await this.oauthManager.getInstagramAccountFromPage(selectedPage.access_token, selectedPageId);
+      
+      if (!instagramAccount) {
+        spinner2.fail('No Instagram Business Account found');
+        console.log(chalk.red('\n❌ No Instagram Business Account found for this Facebook page.'));
+        console.log(chalk.yellow('Please ensure your Instagram account is:'));
+        console.log(chalk.white('1. Converted to a Business account'));
+        console.log(chalk.white('2. Connected to the selected Facebook page'));
+        return;
+      }
+      
+      spinner2.text = 'Fetching Instagram account details...';
+      
+      // Get detailed Instagram account info using the Instagram Graph API
+      const accountInfo = await this.instagramAPI.getAccountInfo(selectedPage.access_token, instagramAccount.id);
+      
+      // Save account with both Facebook and Instagram information
       await this.tokenManager.saveAccount(alias, {
-        ...longLivedToken,
+        access_token: selectedPage.access_token, // Use page access token for Instagram Graph API
+        token_type: 'bearer',
+        expires_in: longLivedToken.expires_in,
+        facebookUserId: longLivedToken.user_id || 'unknown',
+        facebookPageId: selectedPageId,
+        facebookPageName: selectedPage.name,
+        instagramBusinessAccountId: instagramAccount.id,
         accountInfo,
         createdAt: new Date().toISOString(),
         lastRefreshed: new Date().toISOString()
       });
       
-      spinner.succeed(`Account "${alias}" added successfully!`);
+      spinner2.succeed(`Account "${alias}" added successfully!`);
       
       console.log(chalk.green('\n✅ Account Details:'));
       console.log(chalk.white(`   Alias: ${alias}`));
-      console.log(chalk.white(`   Username: @${accountInfo.username}`));
-      console.log(chalk.white(`   Account ID: ${accountInfo.id}`));
+      console.log(chalk.white(`   Instagram Username: @${accountInfo.username}`));
+      console.log(chalk.white(`   Instagram Account ID: ${instagramAccount.id}`));
+      console.log(chalk.white(`   Facebook Page: ${selectedPage.name}`));
       console.log(chalk.white(`   Token expires: ${new Date(Date.now() + longLivedToken.expires_in * 1000).toLocaleDateString()}`));
       
     } catch (error) {
@@ -245,7 +296,8 @@ class InstagramTokenCLI {
       
       console.log(`${prefix}${chalk.white.bold(alias)} ${isDefault ? chalk.green('(default)') : ''}`);
       console.log(`   Username: @${account.accountInfo.username}`);
-      console.log(`   Account ID: ${account.accountInfo.id}`);
+      console.log(`   Instagram Business Account ID: ${account.instagramBusinessAccountId}`);
+      console.log(`   Facebook Page: ${account.facebookPageName}`);
       console.log(`   Status: ${status}`);
       console.log(`   Last refreshed: ${new Date(account.lastRefreshed).toLocaleDateString()}`);
       console.log();
@@ -274,11 +326,17 @@ class InstagramTokenCLI {
     const status = this.getTokenStatus(account.data);
     const expiresAt = new Date(Date.now() + account.data.expires_in * 1000);
     
-    console.log(chalk.cyan('Account Details:'));
+    console.log(chalk.cyan('Instagram Account Details:'));
     console.log(`   Alias: ${account.alias}`);
     console.log(`   Username: @${account.data.accountInfo.username}`);
-    console.log(`   Account ID: ${account.data.accountInfo.id}`);
-    console.log(`   Account Type: ${account.data.accountInfo.account_type || 'N/A'}`);
+    console.log(`   Name: ${account.data.accountInfo.name || 'N/A'}`);
+    console.log(`   Instagram Business Account ID: ${account.data.instagramBusinessAccountId}`);
+    console.log(`   Account Type: Business`);
+    console.log();
+    
+    console.log(chalk.cyan('Facebook Integration:'));
+    console.log(`   Facebook Page: ${account.data.facebookPageName}`);
+    console.log(`   Facebook Page ID: ${account.data.facebookPageId}`);
     console.log();
     
     console.log(chalk.cyan('Token Information:'));
